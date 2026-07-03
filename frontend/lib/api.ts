@@ -1,4 +1,5 @@
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// 기본은 same-origin — next.config.ts의 rewrite가 /api를 백엔드로 프록시한다.
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export type ScopeStatus = "included" | "excluded" | "unknown";
 

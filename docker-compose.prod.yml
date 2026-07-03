@@ -1,0 +1,37 @@
+# 프로덕션 스택 전체. 사용법:
+#   POSTGRES_PASSWORD=<강한비밀번호> docker compose -f docker-compose.prod.yml up -d --build
+# 외부에 노출되는 것은 프런트(:3000) 하나 — /api는 프런트가 백엔드로 프록시한다.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: malgeum
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: malgeum
+    volumes:
+      - malgeum-prod-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U malgeum"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      MALGEUM_DATABASE_URL: postgresql+psycopg://malgeum:${POSTGRES_PASSWORD}@db:5432/malgeum
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+
+volumes:
+  malgeum-prod-pgdata:

@@ -1,7 +1,8 @@
 import { GlossaryEntry, TaxonomyNode } from "./api";
 
 /** 서버 컴포넌트용 — 사전은 SEO 유입구라 서버에서 렌더한다(CLAUDE.md 3장). */
-const API = process.env.MALGEUM_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// 서버에서는 rewrite를 못 타므로 백엔드 절대 주소가 필요하다.
+const API = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 async function get<T>(path: string): Promise<T | null> {
   try {
