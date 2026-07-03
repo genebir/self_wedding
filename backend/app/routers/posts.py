@@ -95,21 +95,26 @@ def _build_card(body: schemas.CardIn, db: Session, user: models.User) -> models.
 
 
 @router.get("", response_model=list[schemas.PostOut])
-def feed(db: Session = Depends(get_db)):
-    """피드는 가입 없이 읽는다(P7)."""
-    counts = dict(
-        db.execute(
-            select(models.Comment.post_id, func.count(models.Comment.id)).group_by(
-                models.Comment.post_id
-            )
-        ).all()
-    )
-    posts = db.scalars(
+def feed(before_id: int | None = None, limit: int = 20, db: Session = Depends(get_db)):
+    """피드는 가입 없이 읽는다(P7). before_id 커서로 과거 글을 이어 받는다."""
+    limit = max(1, min(limit, 50))
+    q = (
         select(models.Post)
         .options(joinedload(models.Post.user), joinedload(models.Post.card))
-        .order_by(models.Post.created_at.desc())
-        .limit(50)
-    ).unique()
+        .order_by(models.Post.id.desc())
+        .limit(limit)
+    )
+    if before_id is not None:
+        q = q.where(models.Post.id < before_id)
+    posts = list(db.scalars(q).unique())
+    ids = [p.id for p in posts]
+    counts = dict(
+        db.execute(
+            select(models.Comment.post_id, func.count(models.Comment.id))
+            .where(models.Comment.post_id.in_(ids))
+            .group_by(models.Comment.post_id)
+        ).all()
+    ) if ids else {}
     return [_post_out(p, counts.get(p.id, 0)) for p in posts]
 
 

@@ -109,3 +109,18 @@ def test_comment_rate_limit(client):
 def test_empty_body_rejected(client):
     headers = register(client)
     assert client.post("/api/posts", json={"body": "   "}, headers=headers).status_code == 422
+
+
+def test_feed_cursor_pagination(client):
+    # rate limit(5/시간)을 피해 사용자 3명이 2건씩 작성
+    for n in range(3):
+        h = register(client, f"작성자{n}")
+        for i in range(2):
+            client.post("/api/posts", json={"body": f"글 {n}-{i}"}, headers=h)
+    first = client.get("/api/posts?limit=4").json()
+    assert len(first) == 4
+    rest = client.get(f"/api/posts?limit=4&before_id={first[-1]['id']}").json()
+    assert len(rest) == 2
+    ids = [p["id"] for p in first + rest]
+    assert ids == sorted(ids, reverse=True)  # 최신순, 중복 없음
+    assert len(set(ids)) == 6

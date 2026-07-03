@@ -180,7 +180,8 @@ export const api = {
     }),
   deleteAccount: () => req<void>("/api/auth/me", { method: "DELETE" }),
 
-  posts: () => req<Post[]>("/api/posts"),
+  posts: (beforeId?: number) =>
+    req<Post[]>(`/api/posts${beforeId ? `?before_id=${beforeId}` : ""}`),
   post: (id: number) => req<PostDetail>(`/api/posts/${id}`),
   createPost: (body: string, card?: CardIn) =>
     req<Post>("/api/posts", { method: "POST", body: JSON.stringify({ body, card }) }),

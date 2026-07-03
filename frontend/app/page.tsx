@@ -8,7 +8,9 @@ import ShareCard from "./components/ShareCard";
 import Composer from "./components/Composer";
 
 export default function FeedPage() {
+  const PAGE = 20;
   const [posts, setPosts] = useState<Post[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [composing, setComposing] = useState(false);
@@ -16,7 +18,9 @@ export default function FeedPage() {
 
   const load = useCallback(async () => {
     try {
-      setPosts(await api.posts());
+      const page = await api.posts();
+      setPosts(page);
+      setHasMore(page.length === PAGE);
       setError(false);
     } catch {
       setError(true);
@@ -24,6 +28,13 @@ export default function FeedPage() {
       setLoaded(true);
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (posts.length === 0) return;
+    const page = await api.posts(posts[posts.length - 1].id);
+    setPosts((prev) => [...prev, ...page]);
+    setHasMore(page.length === PAGE);
+  }, [posts]);
 
   useEffect(() => {
     load();
@@ -97,6 +108,15 @@ export default function FeedPage() {
           </li>
         ))}
       </ul>
+
+      {hasMore && (
+        <button
+          onClick={loadMore}
+          className="w-full rounded-2xl bg-white p-3 text-sm text-ink-soft"
+        >
+          이전 기록 더 보기
+        </button>
+      )}
 
       {composing && (
         <Composer
