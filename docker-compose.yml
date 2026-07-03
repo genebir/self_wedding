@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: malgeum-db
+    environment:
+      POSTGRES_USER: malgeum
+      POSTGRES_PASSWORD: malgeum-dev
+      POSTGRES_DB: malgeum
+    ports:
+      - "5433:5432"
+    volumes:
+      - malgeum-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U malgeum"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  malgeum-pgdata:
