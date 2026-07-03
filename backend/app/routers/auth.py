@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete as sql_delete, select
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -39,3 +39,18 @@ def login(body: schemas.AuthIn, db: Session = Depends(get_db)):
 @router.get("/me", response_model=schemas.MeOut)
 def me(user: models.User = Depends(current_user)):
     return schemas.MeOut(user_id=user.id, nickname=user.nickname)
+
+
+@router.delete("/me", status_code=204)
+def delete_me(db: Session = Depends(get_db), user: models.User = Depends(current_user)):
+    """철회는 기여만큼 쉬워야 한다(P4). 계정과 모든 데이터를 지운다 —
+    포스트·카드·댓글(공개 기록)과 트래커·체크리스트·프로필(사적 도구) 전부."""
+    posts = db.scalars(select(models.Post).where(models.Post.user_id == user.id)).all()
+    for p in posts:
+        db.delete(p)  # cascade: card + 그 글의 댓글
+    db.execute(sql_delete(models.Comment).where(models.Comment.user_id == user.id))
+    db.execute(sql_delete(models.Expense).where(models.Expense.user_id == user.id))
+    db.execute(sql_delete(models.ChecklistItem).where(models.ChecklistItem.user_id == user.id))
+    db.execute(sql_delete(models.Profile).where(models.Profile.user_id == user.id))
+    db.delete(user)
+    db.commit()

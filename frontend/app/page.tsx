@@ -36,7 +36,12 @@ export default function FeedPage() {
       <header className="flex items-center justify-between pt-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">맑음</h1>
-          <p className="mt-0.5 text-sm text-ink-soft">서로의 준비가 서로의 기준선이 돼요</p>
+          <p className="mt-0.5 text-sm text-ink-soft">
+            서로의 준비가 서로의 기준선이 돼요 ·{" "}
+            <Link href="/about" className="underline">
+              원칙
+            </Link>
+          </p>
         </div>
         {loggedIn ? (
           <button

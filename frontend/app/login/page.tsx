@@ -39,7 +39,10 @@ export default function LoginPage() {
         {mode === "login" ? "다시 만나서 반가워요" : "닉네임 하나면 충분해요"}
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
-        실명도, 연락처도 받지 않아요. 읽는 건 가입 없이도 언제나 열려 있어요.
+        실명도, 연락처도 받지 않아요. 읽는 건 가입 없이도 언제나 열려 있어요.{" "}
+        <a href="/about" className="underline">
+          원칙 보기
+        </a>
       </p>
       <div className="mt-8 space-y-4">
         <label className="block">

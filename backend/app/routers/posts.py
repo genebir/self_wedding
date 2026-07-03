@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
@@ -7,6 +9,21 @@ from ..auth import current_user
 from ..db import get_db
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
+
+# 5.5 오염 방어는 전제다 — 계정당 기여 rate limit
+POSTS_PER_HOUR = 5
+COMMENTS_PER_HOUR = 20
+
+
+def _rate_limit(db: Session, model, user_id: int, cap: int) -> None:
+    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    n = db.scalar(
+        select(func.count(model.id)).where(
+            model.user_id == user_id, model.created_at >= since
+        )
+    )
+    if n >= cap:
+        raise HTTPException(429, "잠시 쉬어가요 — 한 시간 뒤에 다시 올릴 수 있어요")
 
 
 def _card_out(c: models.PostCard | None) -> schemas.CardOut | None:
@@ -105,6 +122,7 @@ def create_post(
     text = body.body.strip()
     if not text:
         raise HTTPException(422, "내용을 적어주세요")
+    _rate_limit(db, models.Post, user.id, POSTS_PER_HOUR)
     post = models.Post(user_id=user.id, body=text)
     if body.card:
         post.card = _build_card(body.card, db, user)
@@ -165,6 +183,7 @@ def create_comment(
     text = body.body.strip()
     if not text:
         raise HTTPException(422, "내용을 적어주세요")
+    _rate_limit(db, models.Comment, user.id, COMMENTS_PER_HOUR)
     c = models.Comment(post_id=post_id, user_id=user.id, body=text)
     db.add(c)
     db.commit()

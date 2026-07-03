@@ -58,6 +58,13 @@ export default function MePage() {
         </button>
       </header>
 
+      <p className="text-xs text-ink-soft">
+        <Link href="/about" className="underline">
+          맑음의 원칙과 내 데이터
+        </Link>{" "}
+        — 무엇이 공개되고, 지우면 어떻게 되는지.
+      </p>
+
       <section>
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="font-semibold">이번에 할 일</h2>
@@ -133,6 +140,25 @@ export default function MePage() {
           </div>
         </section>
       )}
+
+      <section className="border-t border-blush pt-5">
+        <button
+          onClick={async () => {
+            if (
+              !window.confirm(
+                "계정과 함께 모든 데이터가 지워져요 — 올린 글·지출 카드·댓글·트래커·체크리스트 전부요. 지운 카드는 집계에서도 빠집니다. 되돌릴 수 없어요."
+              )
+            )
+              return;
+            await api.deleteAccount();
+            session.clear();
+            router.push("/");
+          }}
+          className="text-xs text-ink-soft underline"
+        >
+          계정과 모든 데이터 삭제
+        </button>
+      </section>
     </div>
   );
 }

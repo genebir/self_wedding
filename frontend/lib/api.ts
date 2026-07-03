@@ -177,6 +177,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ nickname, password }),
     }),
+  deleteAccount: () => req<void>("/api/auth/me", { method: "DELETE" }),
 
   posts: () => req<Post[]>("/api/posts"),
   post: (id: number) => req<PostDetail>(`/api/posts/${id}`),
