@@ -91,6 +91,17 @@ export default function PostPage() {
                 <span className="text-xs text-ink-soft">{timeAgo(c.created_at)}</span>
               </div>
               <p className="mt-1 whitespace-pre-wrap text-sm">{c.body}</p>
+              {me === c.nickname && (
+                <button
+                  onClick={async () => {
+                    await api.deleteComment(c.id);
+                    load();
+                  }}
+                  className="mt-2 text-xs text-ink-soft underline"
+                >
+                  삭제
+                </button>
+              )}
             </li>
           ))}
         </ul>

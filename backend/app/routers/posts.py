@@ -190,3 +190,16 @@ def create_comment(
     return schemas.CommentOut(
         id=c.id, nickname=user.nickname, body=c.body, created_at=c.created_at
     )
+
+
+@router.delete("/comments/{comment_id}", status_code=204)
+def delete_comment(
+    comment_id: int, db: Session = Depends(get_db), user: models.User = Depends(current_user)
+):
+    c = db.get(models.Comment, comment_id)
+    if not c:
+        raise HTTPException(404, "댓글을 찾을 수 없어요")
+    if c.user_id != user.id:
+        raise HTTPException(403, "내가 쓴 댓글만 지울 수 있어요")
+    db.delete(c)
+    db.commit()

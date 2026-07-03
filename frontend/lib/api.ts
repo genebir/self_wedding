@@ -189,6 +189,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ body }),
     }),
+  deleteComment: (id: number) => req<void>(`/api/posts/comments/${id}`, { method: "DELETE" }),
 
   profile: () => req<Profile>("/api/profile"),
   putProfile: (body: Partial<Profile>) =>

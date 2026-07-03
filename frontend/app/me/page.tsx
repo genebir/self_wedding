@@ -3,22 +3,29 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, AuthError, BudgetSummary, ChecklistItem, Profile, session } from "@/lib/api";
-import { dday, won, wonShort } from "@/lib/format";
+import { api, AuthError, BudgetSummary, ChecklistItem, Post, Profile, session } from "@/lib/api";
+import { dday, timeAgo, won, wonShort } from "@/lib/format";
 
 export default function MePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
+  const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [p, c, s] = await Promise.all([api.profile(), api.checklist(), api.summary()]);
+      const [p, c, s, posts] = await Promise.all([
+        api.profile(),
+        api.checklist(),
+        api.summary(),
+        api.posts(),
+      ]);
       setProfile(p);
       setItems(c);
       setSummary(s);
+      setMyPosts(posts.filter((x) => x.nickname === session.nickname()));
       setLoaded(true);
     } catch (e) {
       if (e instanceof AuthError) router.push("/login");
@@ -138,6 +145,31 @@ export default function MePage() {
               <p className="mt-2 text-xs text-ink-soft">총예산을 설정하면 진행률이 보여요.</p>
             )}
           </div>
+        </section>
+      )}
+
+      {myPosts.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-semibold">내가 올린 기록</h2>
+          <ul className="space-y-2">
+            {myPosts.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/post/${p.id}`}
+                  className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm">{p.body}</span>
+                  <span className="shrink-0 text-xs text-ink-soft">
+                    {p.card && "카드 · "}
+                    {timeAgo(p.created_at)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-ink-soft">
+            글을 열면 삭제할 수 있어요. 지운 카드는 집계에서도 빠져요.
+          </p>
         </section>
       )}
 

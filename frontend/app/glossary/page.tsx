@@ -1,28 +1,16 @@
-"use client";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { serverApi, taxonomyNames } from "@/lib/server-api";
 
-import { useEffect, useState } from "react";
-import { api, GlossaryEntry, TaxonomyNode } from "@/lib/api";
+export const metadata: Metadata = {
+  title: "숨은비용 사전 — 맑음",
+  description:
+    "헬퍼비, 원본비, 피팅비, 얼리스타트비… 웨딩 견적에 잘 안 보이는 항목들을 계약 전에 확인하세요.",
+};
 
-export default function GlossaryPage() {
-  const [entries, setEntries] = useState<GlossaryEntry[]>([]);
-  const [names, setNames] = useState<Record<string, string>>({});
-  const [open, setOpen] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([api.glossary(), api.taxonomy()])
-      .then(([g, t]) => {
-        setEntries(g);
-        const map: Record<string, string> = {};
-        const walk = (ns: TaxonomyNode[]) =>
-          ns.forEach((n) => {
-            map[n.slug] = n.name;
-            walk(n.children);
-          });
-        walk(t);
-        setNames(map);
-      })
-      .catch(() => {});
-  }, []);
+export default async function GlossaryPage() {
+  const [entries, taxonomy] = await Promise.all([serverApi.glossary(), serverApi.taxonomy()]);
+  const names = taxonomyNames(taxonomy);
 
   return (
     <div className="space-y-6">
@@ -33,15 +21,15 @@ export default function GlossaryPage() {
         </p>
       </header>
 
-      <ul className="space-y-2">
-        {entries.map((g) => {
-          const isOpen = open === g.slug;
-          return (
-            <li key={g.slug} className="overflow-hidden rounded-2xl bg-white">
-              <button
-                onClick={() => setOpen(isOpen ? null : g.slug)}
-                className="w-full p-4 text-left"
-              >
+      {!entries ? (
+        <p className="text-sm text-ink-soft">
+          사전을 불러올 수 없어요. 잠시 후 다시 열어주세요.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {entries.map((g) => (
+            <li key={g.slug}>
+              <Link href={`/glossary/${g.slug}`} className="block rounded-2xl bg-white p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold">{g.name}</span>
                   {g.category_slug && (
@@ -51,28 +39,11 @@ export default function GlossaryPage() {
                   )}
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">{g.summary}</p>
-              </button>
-              {isOpen && (
-                <div className="space-y-3 border-t border-ivory px-4 py-4 text-sm">
-                  <p>{g.detail}</p>
-                  {g.typical_note && (
-                    <p className="text-ink-soft">
-                      참고: {g.typical_note}. 아직 표본 기반 통계가 아니라 일반적으로
-                      언급되는 범위예요.
-                    </p>
-                  )}
-                  {g.ask_vendor && (
-                    <div className="rounded-xl bg-ivory p-3">
-                      <p className="text-xs font-semibold text-flag">업체에 물어보세요</p>
-                      <p className="mt-1">“{g.ask_vendor}”</p>
-                    </div>
-                  )}
-                </div>
-              )}
+              </Link>
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
