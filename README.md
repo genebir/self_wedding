@@ -36,14 +36,28 @@ VPS 한 대에 이 컴포즈를 올리고 리버스 프록시(Caddy/nginx)로 TL
 
 ```
 backend/app/
-  models.py     Phase 1 데이터 모델 (taxonomy, expense, vendor, fee_glossary, checklist, profile)
-  seed.py       카테고리 트리 · 숨은비용 사전 · 체크리스트 템플릿
-  routers/      profile, taxonomy, expenses, checklist, glossary
+  models.py     user, post, post_card(공유 스냅샷), comment
+                + taxonomy, expense(비공개 트래커), vendor, fee_glossary, checklist, profile
+  seed.py       카테고리 트리 · 숨은비용 사전 16항목 · 체크리스트 템플릿
+  routers/      auth(닉네임 계정·비밀번호 변경·계정 전체 삭제),
+                posts(피드·카드·댓글·rate limit), expenses(+vendor-suggest),
+                checklist, profile, glossary, taxonomy
+  tests/        페르소나 불변식 26개 (pytest, CI에서 실행)
 frontend/app/
-  page.tsx      홈 — 온보딩(예식일) → D-day + 다음 할 일 3개 + 예산 요약
+  page.tsx      피드 — 포스트 + 지출 카드, 커서 페이지네이션
+  components/   Composer(카드 첨부·공개 미리보기), ShareCard
+  post/[id]/    글 상세 + 댓글
+  me/           D-day 대시보드 · 내가 올린 기록 · 비밀번호 변경 · 계정 삭제
   budget/       예산 트래커 + 스코프 체크(포함 ✓/불포함 ✗/미확인 ?)
   checklist/    예식일 역산 체크리스트
-  glossary/     숨은비용 사전
+  glossary/     숨은비용 사전 (SSR, sitemap 포함 — SEO 유입구)
+  about/        맑음의 원칙 (수익모델·데이터·삭제 시맨틱 공개)
 ```
 
-Phase 2(견적 디코더)·Phase 3(분포 공개) 관련 코드는 승격 규칙에 따라 아직 없다.
+Phase B(견적 디코더 등)·Phase C(분포 공개) 코드는 승격 규칙에 따라 아직 없다.
+
+## 테스트
+
+```bash
+cd backend && .venv/bin/python -m pytest tests -q   # 테스트 DB: malgeum_test (자동 생성 필요)
+```
