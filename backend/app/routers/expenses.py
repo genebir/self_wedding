@@ -3,6 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
+from ..auth import current_user
 from ..db import get_db
 
 router = APIRouter(prefix="/api/expenses", tags=["expenses"])
@@ -48,20 +49,26 @@ def _to_out(e: models.Expense) -> schemas.ExpenseOut:
 
 
 @router.get("", response_model=list[schemas.ExpenseOut])
-def list_expenses(db: Session = Depends(get_db)):
+def list_expenses(db: Session = Depends(get_db), user: models.User = Depends(current_user)):
     rows = db.scalars(
         select(models.Expense)
         .options(joinedload(models.Expense.taxonomy), joinedload(models.Expense.vendor))
+        .where(models.Expense.user_id == user.id)
         .order_by(models.Expense.created_at.desc())
     ).all()
     return [_to_out(e) for e in rows]
 
 
 @router.post("", response_model=schemas.ExpenseOut, status_code=201)
-def create_expense(body: schemas.ExpenseIn, db: Session = Depends(get_db)):
+def create_expense(
+    body: schemas.ExpenseIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(current_user),
+):
     tx = _get_taxonomy(db, body.taxonomy_slug)
     vendor = _upsert_vendor(db, body.vendor_name.strip(), body.vendor_region) if body.vendor_name and body.vendor_name.strip() else None
     e = models.Expense(
+        user_id=user.id,
         taxonomy_id=tx.id,
         title=body.title,
         planned_amount=body.planned_amount,
@@ -79,9 +86,14 @@ def create_expense(body: schemas.ExpenseIn, db: Session = Depends(get_db)):
 
 
 @router.patch("/{expense_id}", response_model=schemas.ExpenseOut)
-def patch_expense(expense_id: int, body: schemas.ExpensePatch, db: Session = Depends(get_db)):
+def patch_expense(
+    expense_id: int,
+    body: schemas.ExpensePatch,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(current_user),
+):
     e = db.get(models.Expense, expense_id)
-    if not e:
+    if not e or e.user_id != user.id:
         raise HTTPException(404, "지출 항목을 찾을 수 없어요")
     data = body.model_dump(exclude_unset=True)
     if "taxonomy_slug" in data:
@@ -101,17 +113,21 @@ def patch_expense(expense_id: int, body: schemas.ExpensePatch, db: Session = Dep
 
 
 @router.delete("/{expense_id}", status_code=204)
-def delete_expense(expense_id: int, db: Session = Depends(get_db)):
+def delete_expense(
+    expense_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(current_user),
+):
     e = db.get(models.Expense, expense_id)
-    if not e:
+    if not e or e.user_id != user.id:
         raise HTTPException(404, "지출 항목을 찾을 수 없어요")
     db.delete(e)
     db.commit()
 
 
 @router.get("/summary", response_model=schemas.BudgetSummary)
-def budget_summary(db: Session = Depends(get_db)):
-    profile = db.scalar(select(models.Profile))
+def budget_summary(db: Session = Depends(get_db), user: models.User = Depends(current_user)):
+    profile = db.scalar(select(models.Profile).where(models.Profile.user_id == user.id))
     rows = db.execute(
         select(
             models.Taxonomy.slug,
@@ -121,6 +137,7 @@ def budget_summary(db: Session = Depends(get_db)):
             func.count(models.Expense.id),
         )
         .join(models.Taxonomy, models.Taxonomy.id == models.Expense.taxonomy_id)
+        .where(models.Expense.user_id == user.id)
         .group_by(models.Taxonomy.slug, models.Taxonomy.name, models.Taxonomy.sort_order)
         .order_by(models.Taxonomy.sort_order)
     ).all()

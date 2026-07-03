@@ -1,12 +1,10 @@
-"""Phase 1 데이터 모델.
+"""v3 데이터 모델 — 커뮤니티 코어 + 개인 도구.
 
-CLAUDE.md 6장 원칙:
-- expense(사적 도구)는 사용자 소유·기본 비공개. contribution(공적 통계)은 Phase 3 전까지 만들지 않는다.
-- vendor는 upsert-only — 실데이터(지출 기록)에서만 생성된다.
+CLAUDE.md 원칙:
+- expense(사적 도구)와 post_card(공적 기록)는 물리적으로 분리. 공유는 스냅샷 복사(4장).
+- vendor는 upsert-only — 실데이터에서만 생성된다.
 - scope는 1급 필드(5.6). fee_glossary가 scope 체크리스트의 원천.
-
-MVP는 단일 사용자(도그푸딩)라 user 테이블이 없다. 다중 사용자 전환 시
-expense/checklist_item/profile에 user_id를 추가하는 마이그레이션이 1순위다.
+- user는 닉네임 기반, 실명·연락처 없음(5.9). 카드의 시기=월, 지역=광역 단위(4장).
 """
 from datetime import date, datetime, timezone
 
@@ -19,6 +17,67 @@ from .db import Base
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nickname: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    token: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Post(Base):
+    __tablename__ = "post"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    user: Mapped[User] = relationship()
+    card: Mapped["PostCard | None"] = relationship(
+        back_populates="post", cascade="all, delete-orphan", uselist=False
+    )
+    comments: Mapped[list["Comment"]] = relationship(
+        back_populates="post", cascade="all, delete-orphan", order_by="Comment.created_at"
+    )
+
+
+class PostCard(Base):
+    """공유 시점의 스냅샷. expense를 참조하지 않고 값을 복사한다(4장 — 물리적 분리)."""
+
+    __tablename__ = "post_card"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"), unique=True)
+    category_slug: Mapped[str] = mapped_column(String(64), index=True)
+    category_name: Mapped[str] = mapped_column(String(128))
+    title: Mapped[str | None] = mapped_column(String(256))
+    amount: Mapped[int] = mapped_column(Integer)  # 원(KRW)
+    scope: Mapped[list] = mapped_column(JSONB, default=list)
+    attributes: Mapped[dict] = mapped_column(JSONB, default=dict)
+    vendor_name: Mapped[str | None] = mapped_column(String(128))
+    region: Mapped[str | None] = mapped_column(String(64))  # 광역 단위
+    paid_month: Mapped[str | None] = mapped_column(String(7))  # "2026-07" — 월 단위
+    trust_grade: Mapped[str] = mapped_column(String(1), default="B")  # 5.4
+
+    post: Mapped[Post] = relationship(back_populates="card")
+
+
+class Comment(Base):
+    __tablename__ = "comment"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("post.id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    post: Mapped[Post] = relationship(back_populates="comments")
+    user: Mapped[User] = relationship()
 
 
 class Taxonomy(Base):
@@ -44,9 +103,12 @@ class Vendor(Base):
 
 
 class Expense(Base):
+    """예산 트래커 항목 — 사용자 소유, 기본 비공개. 카드의 원재료."""
+
     __tablename__ = "expense"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     taxonomy_id: Mapped[int] = mapped_column(ForeignKey("taxonomy.id"), index=True)
     title: Mapped[str | None] = mapped_column(String(256))
     planned_amount: Mapped[int | None] = mapped_column(Integer)  # 원(KRW)
@@ -97,6 +159,7 @@ class ChecklistItem(Base):
     __tablename__ = "checklist_item"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), index=True)
     template_id: Mapped[int | None] = mapped_column(ForeignKey("checklist_template.id"))
     title: Mapped[str] = mapped_column(String(256))
     description: Mapped[str | None] = mapped_column(Text)
@@ -109,11 +172,12 @@ class ChecklistItem(Base):
 
 
 class Profile(Base):
-    """단일 행(도그푸딩). 예식일이 체크리스트 역산의 기준."""
+    """사용자별 1행. 예식일이 체크리스트 역산의 기준."""
 
     __tablename__ = "profile"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), unique=True, index=True)
     wedding_date: Mapped[date | None] = mapped_column(Date)
     region: Mapped[str | None] = mapped_column(String(64))
     budget_total: Mapped[int | None] = mapped_column(Integer)

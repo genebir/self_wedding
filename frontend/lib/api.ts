@@ -83,16 +83,112 @@ export interface Profile {
   d_day: number | null;
 }
 
+export interface Card {
+  category_slug: string;
+  category_name: string;
+  title: string | null;
+  amount: number;
+  scope: ScopeEntry[];
+  vendor_name: string | null;
+  region: string | null;
+  paid_month: string | null;
+  trust_grade: string;
+}
+
+export interface CardIn {
+  expense_id?: number;
+  category_slug?: string;
+  title?: string;
+  amount?: number;
+  scope?: ScopeEntry[];
+  vendor_name?: string;
+  region?: string;
+  paid_month?: string;
+}
+
+export interface Post {
+  id: number;
+  nickname: string;
+  body: string;
+  card: Card | null;
+  comment_count: number;
+  created_at: string;
+  mine: boolean;
+}
+
+export interface Comment {
+  id: number;
+  nickname: string;
+  body: string;
+  created_at: string;
+}
+
+export interface PostDetail extends Post {
+  comments: Comment[];
+}
+
+export class AuthError extends Error {}
+
+const TOKEN_KEY = "malgeum.token";
+const NICK_KEY = "malgeum.nickname";
+
+export const session = {
+  token: () => (typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY)),
+  nickname: () => (typeof window === "undefined" ? null : localStorage.getItem(NICK_KEY)),
+  save(token: string, nickname: string) {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(NICK_KEY, nickname);
+  },
+  clear() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(NICK_KEY);
+  },
+};
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = session.token();
   const res = await fetch(`${API}${path}`, {
     ...init,
-    headers: { "content-type": "application/json", ...init?.headers },
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...init?.headers,
+    },
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  if (res.status === 401) throw new AuthError("로그인이 필요해요");
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = (await res.json())?.detail ?? "";
+    } catch {}
+    throw new Error(detail || `요청에 실패했어요 (${res.status})`);
+  }
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
 export const api = {
+  register: (nickname: string, password: string) =>
+    req<{ token: string; nickname: string }>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ nickname, password }),
+    }),
+  login: (nickname: string, password: string) =>
+    req<{ token: string; nickname: string }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ nickname, password }),
+    }),
+
+  posts: () => req<Post[]>("/api/posts"),
+  post: (id: number) => req<PostDetail>(`/api/posts/${id}`),
+  createPost: (body: string, card?: CardIn) =>
+    req<Post>("/api/posts", { method: "POST", body: JSON.stringify({ body, card }) }),
+  deletePost: (id: number) => req<void>(`/api/posts/${id}`, { method: "DELETE" }),
+  createComment: (postId: number, body: string) =>
+    req<Comment>(`/api/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+
   profile: () => req<Profile>("/api/profile"),
   putProfile: (body: Partial<Profile>) =>
     req<Profile>("/api/profile", { method: "PUT", body: JSON.stringify(body) }),

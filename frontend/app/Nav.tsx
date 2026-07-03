@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/", label: "홈" },
+  { href: "/", label: "피드" },
+  { href: "/me", label: "내 준비" },
   { href: "/budget", label: "예산" },
   { href: "/checklist", label: "체크리스트" },
   { href: "/glossary", label: "숨은비용" },

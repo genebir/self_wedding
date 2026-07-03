@@ -139,3 +139,74 @@ class ProfileOut(ProfileIn):
 
     id: int
     d_day: int | None = None
+
+
+class AuthIn(BaseModel):
+    nickname: str
+    password: str
+
+
+class AuthOut(BaseModel):
+    token: str
+    nickname: str
+    user_id: int
+
+
+class MeOut(BaseModel):
+    user_id: int
+    nickname: str
+
+
+class CardIn(BaseModel):
+    """expense_id로 트래커 항목을 스냅샷하거나, 필드를 직접 적는다."""
+
+    expense_id: int | None = None
+    category_slug: str | None = None
+    title: str | None = None
+    amount: int | None = Field(default=None, ge=0)
+    scope: list[ScopeEntry] = []
+    vendor_name: str | None = None
+    region: str | None = None
+    paid_month: str | None = Field(default=None, pattern=r"^\d{4}-\d{2}$")
+
+
+class CardOut(BaseModel):
+    category_slug: str
+    category_name: str
+    title: str | None
+    amount: int
+    scope: list[ScopeEntry]
+    vendor_name: str | None
+    region: str | None
+    paid_month: str | None
+    trust_grade: str
+
+
+class PostIn(BaseModel):
+    body: str
+    card: CardIn | None = None
+
+
+class PostOut(BaseModel):
+    id: int
+    nickname: str
+    body: str
+    card: CardOut | None
+    comment_count: int
+    created_at: datetime
+    mine: bool = False
+
+
+class CommentIn(BaseModel):
+    body: str
+
+
+class CommentOut(BaseModel):
+    id: int
+    nickname: str
+    body: str
+    created_at: datetime
+
+
+class PostDetailOut(PostOut):
+    comments: list[CommentOut] = []

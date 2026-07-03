@@ -1,10 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..auth import current_user
 from ..db import get_db
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
@@ -27,15 +28,19 @@ def _out(p: models.Profile | None) -> schemas.ProfileOut:
 
 
 @router.get("", response_model=schemas.ProfileOut)
-def get_profile(db: Session = Depends(get_db)):
-    return _out(db.scalar(select(models.Profile)))
+def get_profile(db: Session = Depends(get_db), user: models.User = Depends(current_user)):
+    return _out(db.scalar(select(models.Profile).where(models.Profile.user_id == user.id)))
 
 
 @router.put("", response_model=schemas.ProfileOut)
-def put_profile(body: schemas.ProfileIn, db: Session = Depends(get_db)):
-    p = db.scalar(select(models.Profile))
+def put_profile(
+    body: schemas.ProfileIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(current_user),
+):
+    p = db.scalar(select(models.Profile).where(models.Profile.user_id == user.id))
     if not p:
-        p = models.Profile()
+        p = models.Profile(user_id=user.id)
         db.add(p)
     old_date = p.wedding_date
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -43,10 +48,11 @@ def put_profile(body: schemas.ProfileIn, db: Session = Depends(get_db)):
     db.flush()
     # 예식일이 정해지거나 바뀌면 템플릿 기반 항목의 due_date를 역산으로 재계산
     if p.wedding_date and p.wedding_date != old_date:
-        from datetime import timedelta
-
         items = db.scalars(
-            select(models.ChecklistItem).where(models.ChecklistItem.offset_days.is_not(None))
+            select(models.ChecklistItem).where(
+                models.ChecklistItem.user_id == user.id,
+                models.ChecklistItem.offset_days.is_not(None),
+            )
         ).all()
         for item in items:
             item.due_date = p.wedding_date - timedelta(days=item.offset_days)

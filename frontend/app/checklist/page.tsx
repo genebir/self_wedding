@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, ChecklistItem, Profile } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { api, AuthError, ChecklistItem, Profile } from "@/lib/api";
 import { dday } from "@/lib/format";
 
 export default function ChecklistPage() {
+  const router = useRouter();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -18,8 +20,11 @@ export default function ChecklistPage() {
   }, []);
 
   useEffect(() => {
-    load().catch(() => setLoaded(true));
-  }, [load]);
+    load().catch((e) => {
+      if (e instanceof AuthError) router.push("/login");
+      else setLoaded(true);
+    });
+  }, [load, router]);
 
   async function toggle(item: ChecklistItem) {
     // 낙관적 갱신 — P3: 지하철에서도 즉각 반응해야 한다
@@ -61,7 +66,7 @@ export default function ChecklistPage() {
           <p className="text-sm text-ink-soft">
             {profile?.wedding_date
               ? "예식일 기준으로 표준 체크리스트를 만들 수 있어요."
-              : "홈에서 예식일을 먼저 입력해 주세요."}
+              : "내 준비 탭에서 예식일을 먼저 입력해 주세요."}
           </p>
           {profile?.wedding_date && (
             <button

@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, BudgetSummary, Expense, TaxonomyNode } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { api, AuthError, BudgetSummary, Expense, TaxonomyNode } from "@/lib/api";
 import { won, wonShort } from "@/lib/format";
 import ExpenseForm from "./ExpenseForm";
 
 export default function BudgetPage() {
+  const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<BudgetSummary | null>(null);
   const [taxonomy, setTaxonomy] = useState<TaxonomyNode[]>([]);
@@ -20,8 +22,10 @@ export default function BudgetPage() {
   }, []);
 
   useEffect(() => {
-    load().catch(() => {});
-  }, [load]);
+    load().catch((e) => {
+      if (e instanceof AuthError) router.push("/login");
+    });
+  }, [load, router]);
 
   return (
     <div className="space-y-6">

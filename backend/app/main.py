@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import Base, engine
-from .routers import checklist, expenses, glossary, profile, taxonomy
+from .routers import auth, checklist, expenses, glossary, posts, profile, taxonomy
 from .seed import run_seed
 
 
@@ -26,6 +26,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
+app.include_router(posts.router)
 app.include_router(profile.router)
 app.include_router(taxonomy.router)
 app.include_router(expenses.router)
