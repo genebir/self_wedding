@@ -53,7 +53,12 @@ export default function ExpenseForm({
   const [memo, setMemo] = useState(editing?.memo ?? "");
   const [scope, setScope] = useState<ScopeEntry[]>(editing?.scope ?? []);
   const [askHints, setAskHints] = useState<Record<string, string>>({});
+  const [vendorOptions, setVendorOptions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.vendorSuggest().then(setVendorOptions).catch(() => {});
+  }, []);
 
   // 카테고리 선택 → 숨은비용 사전에서 scope 체크리스트 로드 (5.6)
   useEffect(() => {
@@ -181,9 +186,15 @@ export default function ExpenseForm({
               <input
                 type="text"
                 value={vendorName}
+                list="vendor-options"
                 onChange={(e) => setVendorName(e.target.value)}
                 className={inputCls}
               />
+              <datalist id="vendor-options">
+                {vendorOptions.map((v) => (
+                  <option key={v} value={v} />
+                ))}
+              </datalist>
             </label>
             <label className="block">
               <span className="text-sm font-medium">

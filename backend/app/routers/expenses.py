@@ -125,6 +125,27 @@ def delete_expense(
     db.commit()
 
 
+@router.get("/vendor-suggest", response_model=list[str])
+def vendor_suggest(
+    q: str = "", db: Session = Depends(get_db), user: models.User = Depends(current_user)
+):
+    """업체명 자동완성 — 오타로 vendor가 갈라지는 걸 막는다(5.7 데이터 품질).
+    노출 범위는 공개 카드에 등장한 업체명 + 내 지출의 업체명뿐이다.
+    남의 비공개 지출에서 온 업체명은 여기로 새지 않는다."""
+    public_names = select(models.PostCard.vendor_name).where(
+        models.PostCard.vendor_name.is_not(None)
+    )
+    my_names = (
+        select(models.Vendor.name)
+        .join(models.Expense, models.Expense.vendor_id == models.Vendor.id)
+        .where(models.Expense.user_id == user.id)
+    )
+    names = {n for n in db.scalars(public_names)} | {n for n in db.scalars(my_names)}
+    ql = q.strip().lower()
+    matched = sorted(n for n in names if ql in n.lower()) if ql else sorted(names)
+    return matched[:8]
+
+
 @router.get("/summary", response_model=schemas.BudgetSummary)
 def budget_summary(db: Session = Depends(get_db), user: models.User = Depends(current_user)):
     profile = db.scalar(select(models.Profile).where(models.Profile.user_id == user.id))

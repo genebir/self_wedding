@@ -157,6 +157,11 @@ class MeOut(BaseModel):
     nickname: str
 
 
+class PasswordChangeIn(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class CardIn(BaseModel):
     """expense_id로 트래커 항목을 스냅샷하거나, 필드를 직접 적는다."""
 

@@ -173,6 +173,8 @@ export default function MePage() {
         </section>
       )}
 
+      <PasswordSection />
+
       <section className="border-t border-blush pt-5">
         <button
           onClick={async () => {
@@ -192,6 +194,54 @@ export default function MePage() {
         </button>
       </section>
     </div>
+  );
+}
+
+function PasswordSection() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [msg, setMsg] = useState("");
+  const inputCls =
+    "mt-1 w-full rounded-xl border border-blush bg-white p-3 text-sm outline-none focus:border-blush-deep";
+
+  return (
+    <details className="border-t border-blush pt-5">
+      <summary className="cursor-pointer text-sm text-ink-soft">비밀번호 변경</summary>
+      <div className="mt-3 space-y-3">
+        <input
+          type="password"
+          placeholder="현재 비밀번호"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+          className={inputCls}
+        />
+        <input
+          type="password"
+          placeholder="새 비밀번호 (8자 이상)"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          className={inputCls}
+        />
+        {msg && <p className="text-sm text-ink-soft">{msg}</p>}
+        <button
+          onClick={async () => {
+            try {
+              const res = await api.changePassword(current, next);
+              session.save(res.token, res.nickname);
+              setCurrent("");
+              setNext("");
+              setMsg("변경했어요. 다른 기기에서는 다시 로그인해야 해요.");
+            } catch (e) {
+              setMsg(e instanceof Error ? e.message : "다시 시도해 주세요");
+            }
+          }}
+          disabled={!current || next.length < 8}
+          className="rounded-xl bg-blush-deep px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          변경하기
+        </button>
+      </div>
+    </details>
   );
 }
 

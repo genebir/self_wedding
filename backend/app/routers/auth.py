@@ -41,6 +41,22 @@ def me(user: models.User = Depends(current_user)):
     return schemas.MeOut(user_id=user.id, nickname=user.nickname)
 
 
+@router.post("/password", response_model=schemas.AuthOut)
+def change_password(
+    body: schemas.PasswordChangeIn,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(current_user),
+):
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(403, "현재 비밀번호가 맞지 않아요")
+    if len(body.new_password) < 8:
+        raise HTTPException(422, "새 비밀번호는 8자 이상이어야 해요")
+    user.password_hash = hash_password(body.new_password)
+    user.token = issue_token()  # 기존 토큰 무효화
+    db.commit()
+    return schemas.AuthOut(token=user.token, nickname=user.nickname, user_id=user.id)
+
+
 @router.delete("/me", status_code=204)
 def delete_me(db: Session = Depends(get_db), user: models.User = Depends(current_user)):
     """철회는 기여만큼 쉬워야 한다(P4). 계정과 모든 데이터를 지운다 —

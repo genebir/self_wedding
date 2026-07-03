@@ -179,6 +179,13 @@ export const api = {
       body: JSON.stringify({ nickname, password }),
     }),
   deleteAccount: () => req<void>("/api/auth/me", { method: "DELETE" }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    req<{ token: string; nickname: string }>("/api/auth/password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
+  vendorSuggest: (q = "") =>
+    req<string[]>(`/api/expenses/vendor-suggest?q=${encodeURIComponent(q)}`),
 
   posts: (beforeId?: number) =>
     req<Post[]>(`/api/posts${beforeId ? `?before_id=${beforeId}` : ""}`),
