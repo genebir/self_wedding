@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { api, Post, session } from "@/lib/api";
+import { api, Post, Profile, session } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import ShareCard from "./components/ShareCard";
 import Composer from "./components/Composer";
@@ -14,6 +14,7 @@ export default function FeedPage() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [composing, setComposing] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const loggedIn = typeof window !== "undefined" && !!session.token();
 
   const load = useCallback(async () => {
@@ -26,6 +27,9 @@ export default function FeedPage() {
       setError(true);
     } finally {
       setLoaded(true);
+    }
+    if (session.token()) {
+      api.profile().then(setProfile).catch(() => {});
     }
   }, []);
 
@@ -72,6 +76,18 @@ export default function FeedPage() {
         <p className="mt-12 text-center text-sm text-ink-soft">
           서버에 연결할 수 없어요. 백엔드가 실행 중인지 확인해 주세요.
         </p>
+      )}
+
+      {loggedIn && profile && !profile.wedding_date && (
+        <Link
+          href="/me"
+          className="block rounded-2xl border border-blush bg-white p-4"
+        >
+          <p className="font-medium">먼저 예식일을 알려주세요</p>
+          <p className="mt-0.5 text-sm text-ink-soft">
+            오늘 기준으로 뭘 해야 하는지부터 정리해 드려요 →
+          </p>
+        </Link>
       )}
 
       {!error && posts.length === 0 && (
